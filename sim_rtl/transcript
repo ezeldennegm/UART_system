@@ -1,0 +1,43 @@
+# do run.do
+# ** Warning: (vlib-34) Library already exists at "work".
+# Errors: 0, Warnings: 1
+# QuestaSim-64 vlog 2021.1 Compiler 2021.01 Jan 19 2021
+# Start time: 15:56:32 on Sep 23,2026
+# vlog -f ../rtl/rtl.f 
+# -- Compiling module ALU
+# -- Compiling module BINARY_TO_GRAY
+# -- Compiling module ADDR_PTR_CTRL
+# -- Compiling module DF_SYNC
+# -- Compiling module FIFO_MEM
+# -- Compiling module ASYNC_FIFO
+# -- Compiling module CLK_DIV
+# -- Compiling module CLK_DIV_MUX
+# -- Compiling module CLK_GATE
+# -- Compiling module DEST_IF
+# -- Compiling module MULTI_FLOP
+# -- Compiling module PULSE_GEN
+# -- Compiling module DATA_SYNC
+# -- Compiling module REG_FILE
+# -- Compiling module RST_SYNC
+# -- Compiling module SYS_CTRL
+# -- Compiling module DESERIALIZER
+# -- Compiling module EDGE_BIT_CNTR
+# -- Compiling module PARITY_CHK
+# -- Compiling module SAMPLER
+# -- Compiling module SERIAL_PARITY_RX
+# -- Compiling module START_CHK
+# -- Compiling module STOP_CHK
+# -- Compiling module UART_RX_FSM
+# -- Compiling module UART_RX_TOP
+# -- Compiling module SERIAL_PARITY_TX
+# -- Compiling module SERIALIZER
+# -- Compiling module UART_TX_FSM
+# -- Compiling module UART_TX_MUX
+# -- Compiling module UART_TX_TOP
+# -- Compiling module UART_TOP
+# -- Compiling module SYS_TOP
+# 
+# Top level modules:
+# 	SYS_TOP
+# End time: 15:56:33 on Sep 23,2026, Elapsed time: 0:00:01
+# Errors: 0, Warnings: 0

@@ -98,10 +98,10 @@ module UART_RX_TOP #(
     .p_data(p_data)
   );
 
-  SERIAL_PARITY #(
+  SERIAL_PARITY_RX #(
     .ODD_PARITY(ODD_PARITY),
     .EVEN_PARITY(EVEN_PARITY)
-  ) SERIAL_PARITY_U0 (
+  ) RX_SERIAL_PARITY_U (
     .clk(clk),
     .rst_n(rst_n),
     .parity_type(parity_type),

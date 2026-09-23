@@ -1,11 +1,11 @@
-module SERIAL_PARITY#(
+module SERIAL_PARITY_RX#(
   parameter ODD_PARITY = 1,
   parameter EVEN_PARITY = 0
 )( // same cycle parity as first output same cycle SERIALIZER
   input   wire  clk,
   input   wire  rst_n,
-  input   wire  parity_type,    // 1 for odd, 0 for even
-  input   wire  serial_in,      // serial input, will be reused in rx
+  input   wire  parity_type, // 1 for odd, 0 for even
+  input   wire  serial_in, // serial input, will be reused in rx
   input   wire  serial_enable,
   input   wire  parity_chk_en,
   input   wire  sample_done,
@@ -13,14 +13,14 @@ module SERIAL_PARITY#(
 );
 
   // odd and even parity
-  logic parity_even;
+  reg parity_even;
   wire parity_odd;
 
   assign parity_odd = ~parity_even;
 
   assign parity_out = (parity_type == ODD_PARITY)? parity_odd : parity_even;
 
-  always_ff @(posedge clk, negedge rst_n) begin
+  always @(posedge clk, negedge rst_n) begin
     if (!rst_n) begin
       parity_even <= 1'b0;
     end else begin if (!serial_enable && !parity_chk_en) begin

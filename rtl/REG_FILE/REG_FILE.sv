@@ -4,21 +4,20 @@ module REG_FILE (
     input   wire           RdEn,
     input   wire           WrEn,
     input   wire   [2:0]   Address,
-    input   wire   [15:0]  WrData,
-    output  logic  [15:0]  RdData
+    input   wire   [7:0]   WrData,
+    output  logic  [7:0]   RdData,
+    output  wire   [7:0]   reg0,
+    output  wire   [7:0]   reg1,
+    output  wire   [7:0]   reg2,
+    output  wire   [7:0]   reg3
 );
-    logic [15:0] Reg_File [8];
+    logic [7:0] Reg_File [16];
 
     always_ff @(posedge CLK, negedge RST) begin
         if (!RST) begin
-            Reg_File[0] <= 16'b0;
-            Reg_File[1] <= 16'b0;
-            Reg_File[2] <= 16'b0;
-            Reg_File[3] <= 16'b0;
-            Reg_File[4] <= 16'b0;
-            Reg_File[5] <= 16'b0;
-            Reg_File[6] <= 16'b0;
-            Reg_File[7] <= 16'b0;
+            for (int i=0; i<16; i++) begin
+                Reg_File[i] <= 8'b0;
+            end
         end else if (WrEn) begin
             Reg_File[Address] <= WrData;
         end
@@ -30,4 +29,9 @@ module REG_FILE (
             RdData <= Reg_File[Address];
         end
     end
+
+    assign reg0 = Reg_File[0];
+    assign reg1 = Reg_File[1];
+    assign reg2 = Reg_File[2];
+    assign reg3 = Reg_File[3];
 endmodule
