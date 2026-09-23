@@ -3,7 +3,7 @@ module REG_FILE (
     input   wire           RST,
     input   wire           RdEn,
     input   wire           WrEn,
-    input   wire   [2:0]   Address,
+    input   wire   [3:0]   Address,
     input   wire   [7:0]   WrData,
     output  logic  [7:0]   RdData,
     output  wire   [7:0]   reg0,
@@ -15,9 +15,11 @@ module REG_FILE (
 
     always_ff @(posedge CLK, negedge RST) begin
         if (!RST) begin
-            Reg_File[0] <={6'd32, 1'b0, 1'b1};
-            Reg_File[2] <={8'd32};
-            for (int i=2; i<16; i++) begin
+            Reg_File[0] <= 8'b0;
+            Reg_File[1] <= 8'b0;
+            Reg_File[2] <={6'd32, 1'b0, 1'b1};
+            Reg_File[3] <={8'd32};
+            for (int i=4; i<16; i++) begin
                 Reg_File[i] <= 8'b0;
             end
         end else if (WrEn) begin

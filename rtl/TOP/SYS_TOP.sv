@@ -30,11 +30,11 @@ module SYS_TOP (
     //--------------------------------------------------------------------
     // RegFile  (16 x 8b, single read port -- see SYS_CTRL.sv notes)
     //--------------------------------------------------------------------
-    logic       reg2, reg3;
+    logic [7:0] reg2, reg3;
     logic [5:0] uart_prescale;
     logic       uart_par_en, uart_par_typ;
 
-    assign {uart_prescale,parity_type,parity_enable} = reg2;
+    assign {uart_prescale,uart_par_typ,uart_par_en} = reg2;
 
     logic [3:0] rf_addr;
     logic       rf_wren, rf_rden;
@@ -116,7 +116,7 @@ module SYS_TOP (
       .RST(rst_n_ref),
       .ALU_FUN(alu_fun),
       .CLK_EN(alu_clk_en),
-      .ALU_OUT(ALU_OUT),
+      .ALU_OUT(alu_out),
       .Address(rf_addr),
       .WrEn(rf_wren),
       .RdEn(rf_rden),
@@ -128,18 +128,18 @@ module SYS_TOP (
       .reg2(),
       .reg3(),
       */
-      .RX_P_DATA(rx_out_p),
-      .RX_D_VLD(rx_out_v),
+      .RX_P_DATA(rx_p_data),
+      .RX_D_VLD(rx_d_vld),
       .TX_P_DATA(fifo_wr_data),
       .TX_D_VLD(fifo_w_inc),
-      .FIFO_FULL(fifo_full)
+      .FIFO_FULL(fifo_full),
       /*
       .uart_prescale(),
       .uart_par_en(),
       .uart_par_typ(),
       .div_ratio(),
-      .clk_div_en()
       */
+      .clk_div_en(clk_div_en)
     );
 
     //--------------------------------------------------------------------
@@ -203,7 +203,7 @@ module SYS_TOP (
 
     UART_TOP UART_TOP_U (
         .TX_CLK        (TX_CLK),
-        .RX_CLK        (UART_CLK),
+        .RX_CLK        (RX_CLK),
         .RST           (rst_n_uart),
 
         .TX_IN_P       (fifo_rd_data),
@@ -231,7 +231,7 @@ module SYS_TOP (
     PULSE_GEN PULSE_GEN_U (
         .clk       (TX_CLK),
         .a_rst_n   (rst_n_uart),
-        .pulse_in  (tx_busy),
+        .pulse_in  (!tx_busy && !fifo_empty),
         .pulse_out (tx_fetch_pulse)
     );
 

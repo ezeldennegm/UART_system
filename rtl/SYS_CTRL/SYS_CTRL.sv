@@ -36,7 +36,7 @@ module SYS_CTRL #(
     // ---------------- UART TX path (ASYNC_FIFO write port) --------------
     output logic [FRAME_WIDTH-1:0]      TX_P_DATA,
     output logic                        TX_D_VLD,
-    input  logic                        FIFO_FULL
+    input  logic                        FIFO_FULL,
 
     /*
     // ---------------- UART / clock-divider config (derived from reg2/reg3)
@@ -44,8 +44,8 @@ module SYS_CTRL #(
     output logic                        uart_par_en,
     output logic                        uart_par_typ,
     output logic [7:0]                  div_ratio,
-    output logic                        clk_div_en
     */
+    output logic                        clk_div_en
 );
 
     //--------------------------------------------------------------------
@@ -158,7 +158,7 @@ module SYS_CTRL #(
                     endcase
                 end
 
-            S_WR_ADDR:  nstate = S_SEND_LO;
+            S_WR_ADDR:  nstate = S_IDLE;
             S_RD_ADDR:  nstate = S_SEND_LO;   // RdData is valid the cycle after RdEn
             S_WR_OPA:   nstate = S_WR_OPB;
             S_WR_OPB:   nstate = S_ALU_LOAD;
@@ -233,7 +233,7 @@ module SYS_CTRL #(
             S_SEND_LO: begin
                 TX_D_VLD = !FIFO_FULL;
                 unique case (cmd_reg)
-                    CMD_RF_WR:              TX_P_DATA = payload[1];              // echo written byte
+                    //CMD_RF_WR:              TX_P_DATA = payload[1];              // echo written byte
                     CMD_RF_RD:              TX_P_DATA = RdData;                  // read result (exact width match)
                     CMD_ALU_WOP,
                     CMD_ALU_NOP:            TX_P_DATA = ALU_OUT[FRAME_WIDTH-1:0]; // ALU result, low byte
