@@ -15,13 +15,17 @@ module REG_FILE (
 
     always_ff @(posedge CLK, negedge RST) begin
         if (!RST) begin
-            for (int i=0; i<16; i++) begin
+            Reg_File[0] <={6'd32, 1'b0, 1'b1};
+            Reg_File[2] <={8'd32};
+            for (int i=2; i<16; i++) begin
                 Reg_File[i] <= 8'b0;
             end
         end else if (WrEn) begin
             Reg_File[Address] <= WrData;
         end
     end
+
+
     always_ff @(posedge CLK, negedge RST) begin
         if (!RST) begin
             RdData <= 16'b0;
