@@ -11,7 +11,7 @@ module CLK_DIV #(
   logic clk_div_reg;
 
   wire  clk_div_en  = i_clk_en && (i_div_ratio != 1'b0) && (i_div_ratio != 1'b1);
-  wire  err_ratio   = i_clk_en && !clk_div_en;   // meant for div_ratio 0,1
+  //wire  err_ratio   = i_clk_en && !clk_div_en;   // meant for div_ratio 0,1
 
   assign o_div_clk = (clk_div_en) ? clk_div_reg: i_ref_clk;
 
