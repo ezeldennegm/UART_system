@@ -1,36 +1,89 @@
-module SYS_TOP (
-    input  logic REF_CLK,
-    input  logic UART_CLK,
-    input  logic RST,          // raw, active-low, async
+module SYS_TOP #(
+    parameter DATA_WIDTH = 8,
+    parameter REGF_DEPTH = 16,
+    parameter FIFO_DEPTH = 8,
+    parameter SYNC_STAGES = 2
+)(
+    input   logic  REF_CLK,
+    input   logic  UART_CLK,
+    input   logic  RST,        // raw, active-low, async
 
-    input  logic RX_IN,
-    output logic TX_OUT,
+    input   logic  RX_IN,
+    output  logic  TX_OUT,
 
-    output logic PAR_ERR,
-    output logic STP_ERR
+    output  logic  PAR_ERR,
+    output  logic  STP_ERR,
+    input   wire   SI,
+    input   wire   SE,
+    input   wire   scan_clk,
+    input   wire   scan_rst,
+    input   wire   test_mode,
+    output  wire   SO
 );
+    localparam REGF_ADDR = $clog2(REGF_DEPTH);
+    localparam FIFO_ADDR = $clog2(FIFO_DEPTH);
+    logic REF_M_CLK, UART_M_CLK;
+
+
+    MUX2x1 MUX_REF_CLK (
+        .IN_0(REF_CLK),
+        .IN_1(scan_clk),
+        .SEL(test_mode),
+        .OUT(REF_M_CLK)
+    );
+
+    MUX2x1 MUX_UART_CLK (
+        .IN_0(UART_CLK),
+        .IN_1(scan_clk),
+        .SEL(test_mode),
+        .OUT(UART_M_CLK)
+    );
+
 
     //--------------------------------------------------------------------
     // Reset synchronizers (one per clock domain that's actually used)
     //--------------------------------------------------------------------
     logic rst_n_ref, rst_n_uart;
+    logic sync_rst_ref, sync_rst_uart;
 
-    RST_SYNC #(.NUM_STAGES(2)) RST_SYNC_REF (
-        .a_rst_n    (RST),
-        .clk        (REF_CLK),
-        .sync_rst_n (rst_n_ref)
+    logic RST_M ;
+
+    MUX2x1 MUX_RST_M (
+        .IN_0(RST),
+        .IN_1(scan_rst),
+        .SEL(test_mode),
+        .OUT(RST_M)
     );
 
-    RST_SYNC #(.NUM_STAGES(2)) RST_SYNC_UART (
-        .a_rst_n    (RST),
-        .clk        (UART_CLK),
-        .sync_rst_n (rst_n_uart)
+    RST_SYNC #(.NUM_STAGES(SYNC_STAGES)) RST_SYNC_REF (
+        .a_rst_n    (RST_M),
+        .clk        (REF_M_CLK),
+        .sync_rst_n (sync_rst_ref)
     );
 
+    RST_SYNC #(.NUM_STAGES(SYNC_STAGES)) RST_SYNC_UART (
+        .a_rst_n    (RST_M),
+        .clk        (UART_M_CLK),
+        .sync_rst_n (sync_rst_uart)
+    );
+
+    MUX2x1 MUX_RST_REF (
+        .IN_0(sync_rst_ref),
+        .IN_1(scan_rst),
+        .SEL(test_mode),
+        .OUT(rst_n_ref)
+    );
+
+    MUX2x1 MUX_RST_UART (
+        .IN_0(sync_rst_uart),
+        .IN_1(scan_rst),
+        .SEL(test_mode),
+        .OUT(rst_n_uart)
+    );
     //--------------------------------------------------------------------
     // RegFile  (16 x 8b, single read port -- see SYS_CTRL.sv notes)
     //--------------------------------------------------------------------
-    logic [7:0] reg2, reg3;
+    logic [DATA_WIDTH-1:0] reg2, reg3;
     logic [5:0] uart_prescale;
     logic       uart_par_en, uart_par_typ;
 
@@ -38,13 +91,16 @@ module SYS_TOP (
 
     logic [3:0] rf_addr;
     logic       rf_wren, rf_rden;
-    logic [7:0] rf_wrdata, rf_rddata;
+    logic [DATA_WIDTH-1:0] rf_wrdata, rf_rddata;
 
-    logic [7:0]  alu_a, alu_b;
+    logic [DATA_WIDTH-1:0]  alu_a, alu_b;
 
 
-    REG_FILE REG_FILE_U (
-        .CLK     (REF_CLK),
+    REG_FILE #(
+        .REGF_DEPTH(REGF_DEPTH),
+        .REGF_WIDTH(DATA_WIDTH)
+    )REG_FILE_U (
+        .CLK     (REF_M_CLK),
         .RST     (rst_n_ref),
         .RdEn    (rf_rden),
         .WrEn    (rf_wren),
@@ -66,20 +122,28 @@ module SYS_TOP (
     //--------------------------------------------------------------------
     logic        alu_clk_en;
     logic        alu_gated_clk;
-    logic [15:0] alu_out;
+    logic        alu_m_clk;
+    logic [DATA_WIDTH-1:0] alu_out;
     logic [3:0]  alu_fun;
 
     CLK_GATE CLK_GATE_U (
         .CLK_EN    (alu_clk_en),
-        .CLK       (REF_CLK),
+        .CLK       (REF_M_CLK),
         .GATED_CLK (alu_gated_clk)
     );
-
-    ALU ALU_U (
+    MUX2x1 MUX_ALU_CLK (
+        .IN_0(alu_gated_clk),
+        .IN_1(scan_clk),
+        .SEL(test_mode),
+        .OUT(alu_m_clk)
+    );
+    ALU #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) ALU_U (
         .A          (alu_a),
         .B          (alu_b),
         .ALU_FUN    (alu_fun),
-        .CLK        (alu_gated_clk),
+        .CLK        (alu_m_clk),
         .ALU_OUT    (alu_out)
     );
 
@@ -89,8 +153,8 @@ module SYS_TOP (
     logic [7:0] rx_out_p, rx_p_data;
     logic       rx_out_v, rx_d_vld;
 
-    DATA_SYNC #(.NUM_STAGES(2), .BUS_WIDTH(8)) DATA_SYNC_U (
-        .clk          (REF_CLK),
+    DATA_SYNC #(.NUM_STAGES(SYNC_STAGES), .BUS_WIDTH(DATA_WIDTH)) DATA_SYNC_U (
+        .clk          (REF_M_CLK),
         .a_rst_n      (rst_n_ref),
         .unsync_bus   (rx_out_p),
         .bus_enable   (rx_out_v),
@@ -101,18 +165,18 @@ module SYS_TOP (
     //--------------------------------------------------------------------
     // SYS_CTRL -> ASYNC_FIFO (write side, REF_CLK domain)
     //--------------------------------------------------------------------
-    logic [7:0] fifo_wr_data, fifo_rd_data;
+    logic [DATA_WIDTH-1:0] fifo_wr_data, fifo_rd_data;
     logic       fifo_w_inc, fifo_full, fifo_empty;
 
     logic       clk_div_en;
 
   SYS_CTRL #(
-      .ADDR_WIDTH(),
-      .FRAME_WIDTH(),
-      .ALU_WIDTH(),
-      .ALU_FUN_WIDTH()
+      .ADDR_WIDTH(REGF_ADDR),
+      .FRAME_WIDTH(DATA_WIDTH),
+      .ALU_WIDTH(DATA_WIDTH),
+      .ALU_FUN_WIDTH(4)
     ) SYS_CTRL (
-      .CLK(REF_CLK),
+      .CLK(REF_M_CLK),
       .RST(rst_n_ref),
       .ALU_FUN(alu_fun),
       .CLK_EN(alu_clk_en),
@@ -146,34 +210,46 @@ module SYS_TOP (
     // Clock divider: TX_CLK only (see deviation note 1 above)
     //--------------------------------------------------------------------
     logic TX_CLK;
-
-    CLK_DIV CLK_DIV_TX (
-        .i_ref_clk   (UART_CLK),
-        .i_rst_n     (rst_n_uart),
-        .i_clk_en    (clk_div_en),
-        .i_div_ratio (reg3),
-        .o_div_clk   (TX_CLK)
-    );
-
-    //--------------------------------------------------------------------
-    // Clock divider: RX_CLK only (see deviation note 1 above)
-    //--------------------------------------------------------------------
     logic RX_CLK;
-    logic [7:0] rx_div_ratio;
+    logic [DATA_WIDTH-1:0] rx_div_ratio;
 
     CLK_DIV_MUX #(
-      .WIDTH(8)
+      .WIDTH(DATA_WIDTH)
     )CLK_DIV_MUX_RX (
       .IN(uart_prescale),
       .OUT(rx_div_ratio)
     );
 
+    logic TX_CLK_div, RX_CLK_div;
+
+    CLK_DIV CLK_DIV_TX (
+        .i_ref_clk   (UART_M_CLK),
+        .i_rst_n     (rst_n_uart),
+        .i_clk_en    (clk_div_en),
+        .i_div_ratio (reg3),
+        .o_div_clk   (TX_CLK_div)      // renamed
+    );
+
     CLK_DIV CLK_DIV_RX (
-        .i_ref_clk   (UART_CLK),
+        .i_ref_clk   (UART_M_CLK),
         .i_rst_n     (rst_n_uart),
         .i_clk_en    (clk_div_en),
         .i_div_ratio (rx_div_ratio),
-        .o_div_clk   (RX_CLK)
+        .o_div_clk   (RX_CLK_div)      // renamed
+    );
+
+    MUX2x1 MUX_TX_CLK (
+        .IN_0(TX_CLK_div),
+        .IN_1(scan_clk),
+        .SEL (test_mode),
+        .OUT (TX_CLK)
+    );
+
+    MUX2x1 MUX_RX_CLK (
+        .IN_0(RX_CLK_div),
+        .IN_1(scan_clk),
+        .SEL (test_mode),
+        .OUT (RX_CLK)
     );
 
     //--------------------------------------------------------------------
@@ -181,8 +257,8 @@ module SYS_TOP (
     //--------------------------------------------------------------------
     logic tx_fetch_pulse;
 
-    ASYNC_FIFO #(.DATA_WIDTH(8), .FIFO_DEPTH(8)) ASYNC_FIFO_U (
-        .w_clk     (REF_CLK),
+    ASYNC_FIFO #(.DATA_WIDTH(DATA_WIDTH), .FIFO_DEPTH(FIFO_DEPTH)) ASYNC_FIFO_U (
+        .w_clk     (REF_M_CLK),
         .w_a_rst_n (rst_n_ref),
         .w_inc     (fifo_w_inc),
         .wr_data   (fifo_wr_data),

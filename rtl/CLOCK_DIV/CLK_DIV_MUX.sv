@@ -1,6 +1,6 @@
 module CLK_DIV_MUX #(parameter WIDTH = 8)  (
-input    wire     [5:0]              IN,
-output   reg      [WIDTH-1:0]        OUT
+input   wire   [5:0]        IN,
+output  logic  [WIDTH-1:0]  OUT
 );
 
 

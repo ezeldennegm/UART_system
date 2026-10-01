@@ -1,51 +1,51 @@
 module SYS_CTRL #(
     parameter int ADDR_WIDTH    = 4,
     parameter int FRAME_WIDTH   = 8,    // UART byte width == RegFile word width
-    parameter int ALU_WIDTH     = 16,   // ALU datapath width
+    parameter int ALU_WIDTH     = 8,   // ALU datapath width
     parameter int ALU_FUN_WIDTH = 4
 )(
-    input  logic                        CLK,
-    input  logic                        RST,          // active-low
+    input  logic  CLK,
+    input  logic  RST,  // active-low
 
     // ---------------- ALU interface ----------------
     /*output logic [ALU_WIDTH-1:0]        ALU_A,
     output logic [ALU_WIDTH-1:0]        ALU_B,*/
-    output logic [ALU_FUN_WIDTH-1:0]    ALU_FUN,
-    output logic                        CLK_EN,        // to CLK_GATE (doubles as ALU "enable")
-    input  logic [ALU_WIDTH-1:0]        ALU_OUT,
+    output  logic  [ALU_FUN_WIDTH-1:0]  ALU_FUN,
+    output  logic                       CLK_EN,   // to CLK_GATE (doubles as ALU "enable")
+    input   logic  [ALU_WIDTH-1:0]      ALU_OUT,
 
     // ---------------- RegFile interface ----------------
-    output logic [ADDR_WIDTH-1:0]       Address,
-    output logic                        WrEn,
-    output logic                        RdEn,
-    output logic [FRAME_WIDTH-1:0]      WrData,
-    input  logic [FRAME_WIDTH-1:0]      RdData,
+    output  logic  [ADDR_WIDTH-1:0]   Address,
+    output  logic                     WrEn,
+    output  logic                     RdEn,
+    output  logic  [FRAME_WIDTH-1:0]  WrData,
+    input   logic  [FRAME_WIDTH-1:0]  RdData,
 
     /*
     // Live taps of RegFile locations 0-3 (see header note)
-    input  logic [FRAME_WIDTH-1:0]      reg0,
-    input  logic [FRAME_WIDTH-1:0]      reg1,
-    input  logic [FRAME_WIDTH-1:0]      reg2,
-    input  logic [FRAME_WIDTH-1:0]      reg3,
+    input  logic  [FRAME_WIDTH-1:0]  reg0,
+    input  logic  [FRAME_WIDTH-1:0]  reg1,
+    input  logic  [FRAME_WIDTH-1:0]  reg2,
+    input  logic  [FRAME_WIDTH-1:0]  reg3,
     */
 
     // ---------------- UART RX path (post Data_Sync, REF_CLK domain) -----
-    input  logic [FRAME_WIDTH-1:0]      RX_P_DATA,
-    input  logic                        RX_D_VLD,
+    input  logic  [FRAME_WIDTH-1:0]  RX_P_DATA,
+    input  logic                     RX_D_VLD,
 
     // ---------------- UART TX path (ASYNC_FIFO write port) --------------
-    output logic [FRAME_WIDTH-1:0]      TX_P_DATA,
-    output logic                        TX_D_VLD,
-    input  logic                        FIFO_FULL,
+    output  logic  [FRAME_WIDTH-1:0]  TX_P_DATA,
+    output  logic                     TX_D_VLD,
+    input   logic                     FIFO_FULL,
 
     /*
     // ---------------- UART / clock-divider config (derived from reg2/reg3)
-    output logic [5:0]                  uart_prescale,
-    output logic                        uart_par_en,
-    output logic                        uart_par_typ,
-    output logic [7:0]                  div_ratio,
+    output  logic  [5:0]  uart_prescale,
+    output  logic         uart_par_en,
+    output  logic         uart_par_typ,
+    output  logic  [7:0]  div_ratio,
     */
-    output logic                        clk_div_en
+    output  logic  clk_div_en
 );
 
     //--------------------------------------------------------------------
@@ -71,8 +71,7 @@ module SYS_CTRL #(
         S_WR_OPA,   // ALU w/op: write OP_A -> addr 0x0 (reg0 picks it up)
         S_WR_OPB,   // ALU w/op: write OP_B -> addr 0x1 (reg1 picks it up)
         S_ALU_LOAD, // pulse CLK_EN for one ALU register update
-        S_SEND_LO,  // push low/only response byte into FIFO
-        S_SEND_HI   // push high response byte (ALU results only)
+        S_SEND_LO   // push response byte into FIFO
     } state_e;
 
     state_e state, nstate;
@@ -84,7 +83,6 @@ module SYS_CTRL #(
     logic [7:0] payload [3];   // up to 3 payload bytes (ALU w/op command)
     logic [1:0] byte_cnt;
     logic [1:0] bytes_needed;
-    logic       is_alu_cmd;
 
     //--------------------------------------------------------------------
     // Sequential state register
@@ -104,7 +102,6 @@ module SYS_CTRL #(
             cmd_reg      <= 8'h00;
             byte_cnt     <= 2'd0;
             bytes_needed <= 2'd0;
-            is_alu_cmd   <= 1'b0;
             payload[0]   <= 8'h00;
             payload[1]   <= 8'h00;
             payload[2]   <= 8'h00;
@@ -115,11 +112,11 @@ module SYS_CTRL #(
                         cmd_reg  <= RX_P_DATA;
                         byte_cnt <= 2'd0;
                         unique case (RX_P_DATA)
-                            CMD_RF_WR:   begin bytes_needed <= 2'd2; is_alu_cmd <= 1'b0; end
-                            CMD_RF_RD:   begin bytes_needed <= 2'd1; is_alu_cmd <= 1'b0; end
-                            CMD_ALU_WOP: begin bytes_needed <= 2'd3; is_alu_cmd <= 1'b1; end
-                            CMD_ALU_NOP: begin bytes_needed <= 2'd1; is_alu_cmd <= 1'b1; end
-                            default:     begin bytes_needed <= 2'd0; is_alu_cmd <= 1'b0; end
+                            CMD_RF_WR:   bytes_needed <= 2'd2;
+                            CMD_RF_RD:   bytes_needed <= 2'd1;
+                            CMD_ALU_WOP: bytes_needed <= 2'd3;
+                            CMD_ALU_NOP: bytes_needed <= 2'd1;
+                            default:     bytes_needed <= 2'd0;
                         endcase
                     end
                 end
@@ -165,10 +162,6 @@ module SYS_CTRL #(
             S_ALU_LOAD: nstate = S_SEND_LO;   // ALU_OUT valid the cycle after CLK_EN pulses
 
             S_SEND_LO:
-                if (!FIFO_FULL)
-                    nstate = is_alu_cmd ? S_SEND_HI : S_IDLE;
-
-            S_SEND_HI:
                 if (!FIFO_FULL)
                     nstate = S_IDLE;
 
@@ -234,16 +227,13 @@ module SYS_CTRL #(
                 TX_D_VLD = !FIFO_FULL;
                 unique case (cmd_reg)
                     //CMD_RF_WR:              TX_P_DATA = payload[1];              // echo written byte
-                    CMD_RF_RD:              TX_P_DATA = RdData;                  // read result (exact width match)
+                    CMD_RF_RD:              TX_P_DATA = RdData;
+                    // read result (exact width match)
                     CMD_ALU_WOP,
-                    CMD_ALU_NOP:            TX_P_DATA = ALU_OUT[FRAME_WIDTH-1:0]; // ALU result, low byte
+                    CMD_ALU_NOP:            TX_P_DATA = ALU_OUT[FRAME_WIDTH-1:0];
+                    // ALU result (full width, ALU_WIDTH==FRAME_WIDTH)
                     default:                TX_P_DATA = '0;
                 endcase
-            end
-
-            S_SEND_HI: begin
-                TX_P_DATA = ALU_OUT[ALU_WIDTH-1:FRAME_WIDTH]; // ALU result, high byte
-                TX_D_VLD  = !FIFO_FULL;
             end
 
             default: ;

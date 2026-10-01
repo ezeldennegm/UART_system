@@ -9,29 +9,29 @@ module UART_TOP #(
     parameter PARITY_DISABLE  = 0
 
 )(
-    input  wire        TX_CLK,
-    input  wire        RX_CLK,
-    input  wire        RST,
+    input  wire  TX_CLK,
+    input  wire  RX_CLK,
+    input  wire  RST,
 
     // TX
-    input  wire [7:0]  TX_IN_P,
-    input  wire        TX_IN_V,
-    output wire        TX_OUT_S,
-    output wire        TX_OUT_V,
+    input   wire  [7:0]  TX_IN_P,
+    input   wire         TX_IN_V,
+    output  wire         TX_OUT_S,
+    output  wire         TX_OUT_V,
 
     // RX
-    input  wire        RX_IN_S,
-    output wire [7:0]  RX_OUT_P,
-    output wire        RX_OUT_V,
+    input   wire         RX_IN_S,
+    output  wire  [7:0]  RX_OUT_P,
+    output  wire         RX_OUT_V,
 
     // UART configuration
-    input  wire [5:0]  Prescale,
-    input  wire        parity_enable,
-    input  wire        parity_type,
+    input  wire  [5:0]  Prescale,
+    input  wire         parity_enable,
+    input  wire         parity_type,
 
     // Error outputs
-    output wire        parity_error,
-    output wire        stop_error
+    output  wire  parity_error,
+    output  wire  stop_error
 );
 
 
